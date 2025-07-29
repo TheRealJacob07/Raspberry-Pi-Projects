@@ -72,16 +72,42 @@ class PeopleCounterDashboard:
             if current_modified == self.last_modified and self.data is not None:
                 return self.data
             
+            print(f"DEBUG: Loading CSV file: {self.csv_file_path}")
+            
             # Read CSV file, skipping comment lines
             data = pd.read_csv(self.csv_file_path, comment='#')
+            
+            print(f"DEBUG: Raw columns found: {list(data.columns)}")
+            print(f"DEBUG: First few rows:")
+            print(data.head())
+            
+            # Check if we have the expected number of columns
+            if len(data.columns) != 8:
+                print(f"WARNING: Expected 8 columns, found {len(data.columns)}")
+                print(f"Columns: {list(data.columns)}")
             
             # Check if required columns exist
             required_columns = ['Timestamp', 'Minute', 'Hour', 'Day', 'People_This_Minute', 'People_This_Hour', 'People_This_Day', 'Total_Unique_People']
             missing_columns = [col for col in required_columns if col not in data.columns]
             
             if missing_columns:
-                print(f"Missing required columns: {missing_columns}")
-                return None
+                print(f"ERROR: Missing required columns: {missing_columns}")
+                print(f"Available columns: {list(data.columns)}")
+                
+                # Try to fix common issues
+                if len(data.columns) == 1 and '#' in str(data.columns[0]):
+                    print("Detected malformed header. Attempting to fix...")
+                    # Try reading again with different parameters
+                    data = pd.read_csv(self.csv_file_path, comment='#', skip_blank_lines=True)
+                    print(f"After fix attempt - columns: {list(data.columns)}")
+                    
+                    # Check again
+                    missing_columns = [col for col in required_columns if col not in data.columns]
+                    if missing_columns:
+                        print(f"Still missing columns: {missing_columns}")
+                        return None
+                else:
+                    return None
             
             # Convert timestamp to datetime
             data['Timestamp'] = pd.to_datetime(data['Timestamp'])
@@ -96,10 +122,13 @@ class PeopleCounterDashboard:
             self.last_modified = current_modified
             
             print(f"✓ Loaded {len(data)} records from {self.csv_file_path}")
+            print(f"✓ Data range: {data['Timestamp'].min()} to {data['Timestamp'].max()}")
             return data
             
         except Exception as e:
             print(f"Error loading data: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def _monitor_data_changes(self):
@@ -128,73 +157,116 @@ class PeopleCounterDashboard:
         def get_data():
             """API endpoint to get current data."""
             data = self.load_data()
-            if data is None or len(data) == 0:
-                return jsonify({'error': 'No data available'})
+            if data is None:
+                return jsonify({'error': 'Failed to load data from CSV file'})
             
-            # Get latest statistics
-            latest = data.iloc[-1]
-            stats = {
-                'total_records': len(data),
-                'total_unique_people': int(latest['Total_Unique_People']),
-                'current_minute_people': int(latest['People_This_Minute']),
-                'current_hour_people': int(latest['People_This_Hour']),
-                'current_day_people': int(latest['People_This_Day']),
-                'last_update': latest['Timestamp'].strftime('%Y-%m-%d %H:%M:%S'),
-                'data_range': {
-                    'start': data['Timestamp'].min().strftime('%Y-%m-%d %H:%M:%S'),
-                    'end': data['Timestamp'].max().strftime('%Y-%m-%d %H:%M:%S')
+            if len(data) == 0:
+                return jsonify({'error': 'No data available in CSV file'})
+            
+            try:
+                # Get latest statistics
+                latest = data.iloc[-1]
+                stats = {
+                    'total_records': len(data),
+                    'total_unique_people': int(latest['Total_Unique_People']),
+                    'current_minute_people': int(latest['People_This_Minute']),
+                    'current_hour_people': int(latest['People_This_Hour']),
+                    'current_day_people': int(latest['People_This_Day']),
+                    'last_update': latest['Timestamp'].strftime('%Y-%m-%d %H:%M:%S'),
+                    'data_range': {
+                        'start': data['Timestamp'].min().strftime('%Y-%m-%d %H:%M:%S'),
+                        'end': data['Timestamp'].max().strftime('%Y-%m-%d %H:%M:%S')
+                    }
                 }
-            }
-            
-            return jsonify(stats)
+                
+                return jsonify(stats)
+            except Exception as e:
+                print(f"Error processing data: {e}")
+                return jsonify({'error': f'Error processing data: {str(e)}'})
+        
+        @self.app.route('/api/debug/csv')
+        def debug_csv():
+            """Debug endpoint to check CSV file structure."""
+            try:
+                if not self.csv_file_path.exists():
+                    return jsonify({'error': f'CSV file not found: {self.csv_file_path}'})
+                
+                # Read raw CSV without skipping comments
+                raw_data = pd.read_csv(self.csv_file_path, header=None)
+                
+                # Read CSV with comments skipped
+                data = pd.read_csv(self.csv_file_path, comment='#')
+                
+                debug_info = {
+                    'file_path': str(self.csv_file_path),
+                    'file_exists': True,
+                    'file_size': os.path.getsize(self.csv_file_path),
+                    'raw_rows': len(raw_data),
+                    'processed_rows': len(data),
+                    'raw_columns': list(raw_data.columns) if len(raw_data) > 0 else [],
+                    'processed_columns': list(data.columns),
+                    'first_few_raw_rows': raw_data.head(3).to_dict('records') if len(raw_data) > 0 else [],
+                    'first_few_processed_rows': data.head(3).to_dict('records') if len(data) > 0 else []
+                }
+                
+                return jsonify(debug_info)
+            except Exception as e:
+                return jsonify({'error': f'Debug error: {str(e)}'})
         
         @self.app.route('/api/chart/time_series')
         def time_series_chart():
             """API endpoint for time series chart data."""
             data = self.load_data()
-            if data is None or len(data) == 0:
-                return jsonify({'error': 'No data available'})
+            if data is None:
+                return jsonify({'error': 'Failed to load data from CSV file'})
             
-            # Create time series chart
-            fig = go.Figure()
+            if len(data) == 0:
+                return jsonify({'error': 'No data available in CSV file'})
             
-            # Add traces for different metrics
-            fig.add_trace(go.Scatter(
-                x=data['Timestamp'],
-                y=data['People_This_Minute'],
-                mode='lines+markers',
-                name='People per Minute',
-                line=dict(color='blue', width=2),
-                marker=dict(size=4)
-            ))
-            
-            fig.add_trace(go.Scatter(
-                x=data['Timestamp'],
-                y=data['People_This_Hour'],
-                mode='lines+markers',
-                name='People per Hour',
-                line=dict(color='orange', width=2),
-                marker=dict(size=4)
-            ))
-            
-            fig.add_trace(go.Scatter(
-                x=data['Timestamp'],
-                y=data['Total_Unique_People'],
-                mode='lines+markers',
-                name='Total Unique People',
-                line=dict(color='green', width=2),
-                marker=dict(size=4)
-            ))
-            
-            fig.update_layout(
-                title='People Detection Over Time',
-                xaxis_title='Time',
-                yaxis_title='People Count',
-                hovermode='x unified',
-                height=500
-            )
-            
-            return jsonify(json.loads(fig.to_json()))
+            try:
+                # Create time series chart
+                fig = go.Figure()
+                
+                # Add traces for different metrics
+                fig.add_trace(go.Scatter(
+                    x=data['Timestamp'],
+                    y=data['People_This_Minute'],
+                    mode='lines+markers',
+                    name='People per Minute',
+                    line=dict(color='blue', width=2),
+                    marker=dict(size=4)
+                ))
+                
+                fig.add_trace(go.Scatter(
+                    x=data['Timestamp'],
+                    y=data['People_This_Hour'],
+                    mode='lines+markers',
+                    name='People per Hour',
+                    line=dict(color='orange', width=2),
+                    marker=dict(size=4)
+                ))
+                
+                fig.add_trace(go.Scatter(
+                    x=data['Timestamp'],
+                    y=data['Total_Unique_People'],
+                    mode='lines+markers',
+                    name='Total Unique People',
+                    line=dict(color='green', width=2),
+                    marker=dict(size=4)
+                ))
+                
+                fig.update_layout(
+                    title='People Detection Over Time',
+                    xaxis_title='Time',
+                    yaxis_title='People Count',
+                    hovermode='x unified',
+                    height=500
+                )
+                
+                return jsonify(json.loads(fig.to_json()))
+            except Exception as e:
+                print(f"Error creating time series chart: {e}")
+                return jsonify({'error': f'Error creating chart: {str(e)}'})
         
         @self.app.route('/api/chart/hourly_pattern')
         def hourly_pattern_chart():
