@@ -11,6 +11,22 @@ from hailo_apps.hailo_app_python.core.common.buffer_utils import get_caps_from_p
 from hailo_apps.hailo_app_python.core.gstreamer.gstreamer_app import app_callback_class
 from hailo_apps.hailo_app_python.apps.detection.detection_pipeline import GStreamerDetectionApp
 
+# -----------------------------------------------------------------------------------------------
+# User-defined class to be used in the callback function
+# -----------------------------------------------------------------------------------------------
+# Inheritance from the app_callback_class
+class user_app_callback_class(app_callback_class):
+    def __init__(self):
+        super().__init__()
+        self.new_variable = 42  # New variable example
+
+    def new_function(self):  # New function example
+        return "The meaning of life is: "
+
+# -----------------------------------------------------------------------------------------------
+# User-defined callback function
+# -----------------------------------------------------------------------------------------------
+
 # This is the callback function that will be called when data is available from the pipeline
 def app_callback(pad, info, user_data):
     # Get the GstBuffer from the probe info
