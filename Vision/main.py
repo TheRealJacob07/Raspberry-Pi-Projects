@@ -6,6 +6,10 @@ import os
 import numpy as np
 import cv2
 import hailo
+import csv
+import time
+import threading
+from datetime import datetime
 
 from hailo_apps.hailo_app_python.core.common.buffer_utils import get_caps_from_pad, get_numpy_from_buffer
 from hailo_apps.hailo_app_python.core.gstreamer.gstreamer_app import app_callback_class
@@ -19,9 +23,53 @@ class user_app_callback_class(app_callback_class):
     def __init__(self):
         super().__init__()
         self.new_variable = 42  # New variable example
+        
+        # People counting variables
+        self.people_count = 0
+        self.tracked_people = set()  # Set to track unique people by track ID
+        self.last_log_time = time.time()
+        self.csv_file = "people_count_log.csv"
+        self.csv_lock = threading.Lock()  # Thread lock for CSV operations
+        
+        # Initialize CSV file with headers
+        self.init_csv_file()
 
     def new_function(self):  # New function example
         return "The meaning of life is: "
+    
+    def init_csv_file(self):
+        """Initialize CSV file with headers if it doesn't exist"""
+        try:
+            with open(self.csv_file, 'x', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow(['Timestamp', 'Minute', 'People_Count', 'Total_Unique_People'])
+        except FileExistsError:
+            # File already exists, don't overwrite
+            pass
+    
+    def log_to_csv(self, people_count):
+        """Log people count to CSV file"""
+        current_time = time.time()
+        minute = int(current_time // 60)  # Current minute since epoch
+        
+        with self.csv_lock:
+            try:
+                with open(self.csv_file, 'a', newline='') as file:
+                    writer = csv.writer(file)
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    writer.writerow([timestamp, minute, people_count, len(self.tracked_people)])
+            except Exception as e:
+                print(f"Error writing to CSV: {e}")
+        
+        self.last_log_time = current_time
+    
+    def add_person(self, track_id):
+        """Add a person to the tracked set and increment count if new"""
+        if track_id not in self.tracked_people:
+            self.tracked_people.add(track_id)
+            self.people_count += 1
+            return True
+        return False
 
 # -----------------------------------------------------------------------------------------------
 # User-defined callback function
@@ -52,8 +100,8 @@ def app_callback(pad, info, user_data):
     roi = hailo.get_roi_from_buffer(buffer)
     detections = roi.get_objects_typed(hailo.HAILO_DETECTION)
 
-    # Parse the detections
-    detection_count = 0
+    # Parse the detections and count people
+    current_frame_people = 0
     for detection in detections:
         label = detection.get_label()
         bbox = detection.get_bbox()
@@ -64,15 +112,29 @@ def app_callback(pad, info, user_data):
             track = detection.get_objects_typed(hailo.HAILO_UNIQUE_ID)
             if len(track) == 1:
                 track_id = track[0].get_id()
-            string_to_print += (f"Detection: ID: {track_id} Label: {label} Confidence: {confidence:.2f}\n")
-            detection_count += 1
+            
+            # Add person to tracking if new
+            is_new_person = user_data.add_person(track_id)
+            if is_new_person:
+                string_to_print += f"NEW PERSON DETECTED: ID: {track_id} Label: {label} Confidence: {confidence:.2f}\n"
+            else:
+                string_to_print += f"Detection: ID: {track_id} Label: {label} Confidence: {confidence:.2f}\n"
+            current_frame_people += 1
+    
+    # Check if it's time to log to CSV (every minute)
+    current_time = time.time()
+    if current_time - user_data.last_log_time >= 60:  # 60 seconds = 1 minute
+        user_data.log_to_csv(current_frame_people)
+        string_to_print += f"Logged to CSV: {current_frame_people} people in this minute, {len(user_data.tracked_people)} total unique people\n"
+    
     if user_data.use_frame:
         # Note: using imshow will not work here, as the callback function is not running in the main thread
         # Let's print the detection count to the frame
-        cv2.putText(frame, f"Detections: {detection_count}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(frame, f"Current Frame People: {current_frame_people}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(frame, f"Total Unique People: {len(user_data.tracked_people)}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         # Example of how to use the new_variable and new_function from the user_data
         # Let's print the new_variable and the result of the new_function to the frame
-        cv2.putText(frame, f"{user_data.new_function()} {user_data.new_variable}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(frame, f"{user_data.new_function()} {user_data.new_variable}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         # Convert the frame to BGR
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
         user_data.set_frame(frame)
