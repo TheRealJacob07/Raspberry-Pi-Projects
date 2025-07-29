@@ -357,40 +357,65 @@ class PeopleCounterDashboard:
         def heatmap_chart():
             """API endpoint for heatmap chart data."""
             data = self.load_data()
-            if data is None or len(data) == 0:
-                return jsonify({'error': 'No data available'})
+            if data is None:
+                return jsonify({'error': 'Failed to load data from CSV file'})
             
-            # Create pivot table for heatmap
-            heatmap_data = data.pivot_table(
-                values='People_This_Hour', 
-                index='Day_of_Week', 
-                columns='Hour_of_Day', 
-                aggfunc='mean'
-            ).fillna(0)
+            if len(data) == 0:
+                return jsonify({'error': 'No data available in CSV file'})
             
-            # Reorder days of week
-            day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-            heatmap_data = heatmap_data.reindex([day for day in day_order if day in heatmap_data.index])
-            
-            fig = go.Figure(data=go.Heatmap(
-                z=heatmap_data.values,
-                x=heatmap_data.columns,
-                y=heatmap_data.index,
-                colorscale='YlOrRd',
-                text=heatmap_data.values.round(1),
-                texttemplate="%{text}",
-                textfont={"size": 10},
-                hoverongaps=False
-            ))
-            
-            fig.update_layout(
-                title='People Detection Heatmap: Average Count by Hour and Day',
-                xaxis_title='Hour of Day',
-                yaxis_title='Day of Week',
-                height=500
-            )
-            
-            return jsonify(json.loads(fig.to_json()))
+            try:
+                # Check if we have enough data for a heatmap
+                if len(data) < 2:
+                    return jsonify({'error': 'Insufficient data for heatmap (need at least 2 records)'})
+                
+                # Create pivot table for heatmap
+                heatmap_data = data.pivot_table(
+                    values='People_This_Hour', 
+                    index='Day_of_Week', 
+                    columns='Hour_of_Day', 
+                    aggfunc='mean'
+                ).fillna(0)
+                
+                # Check if we have any data after pivoting
+                if heatmap_data.empty or heatmap_data.shape[0] == 0 or heatmap_data.shape[1] == 0:
+                    return jsonify({'error': 'No valid data for heatmap after processing'})
+                
+                # Reorder days of week
+                day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                heatmap_data = heatmap_data.reindex([day for day in day_order if day in heatmap_data.index])
+                
+                # If no days found, create a simple heatmap with available data
+                if heatmap_data.empty:
+                    # Create a simple heatmap with hour data only
+                    hourly_avg = data.groupby('Hour_of_Day')['People_This_Hour'].mean()
+                    heatmap_data = pd.DataFrame([hourly_avg.values], 
+                                              index=['Current Day'], 
+                                              columns=hourly_avg.index)
+                
+                fig = go.Figure(data=go.Heatmap(
+                    z=heatmap_data.values,
+                    x=heatmap_data.columns,
+                    y=heatmap_data.index,
+                    colorscale='YlOrRd',
+                    text=heatmap_data.values.round(1),
+                    texttemplate="%{text}",
+                    textfont={"size": 10},
+                    hoverongaps=False
+                ))
+                
+                fig.update_layout(
+                    title='People Detection Heatmap: Average Count by Hour and Day',
+                    xaxis_title='Hour of Day',
+                    yaxis_title='Day of Week',
+                    height=500
+                )
+                
+                return jsonify(json.loads(fig.to_json()))
+            except Exception as e:
+                print(f"Error creating heatmap chart: {e}")
+                import traceback
+                traceback.print_exc()
+                return jsonify({'error': f'Error creating heatmap: {str(e)}'})
     
     def run(self, debug=False):
         """Run the Flask application."""

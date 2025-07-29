@@ -48,6 +48,22 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             padding: 20px;
             margin-bottom: 20px;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chart-container h5 {
+            margin-bottom: 15px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .chart-container > div:last-child {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .stat-value {
@@ -85,17 +101,37 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 200px;
+            height: 300px;
             color: #667eea;
+            font-size: 1.1rem;
         }
         
         .error-message {
             background: rgba(220, 53, 69, 0.1);
             border: 1px solid rgba(220, 53, 69, 0.3);
             color: #dc3545;
-            padding: 15px;
+            padding: 20px;
             border-radius: 10px;
             margin: 10px 0;
+            text-align: center;
+            height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .error-message i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .error-message strong {
+            margin-bottom: 5px;
+        }
+        
+        .error-message small {
+            opacity: 0.8;
         }
         
         @media (max-width: 768px) {
@@ -186,7 +222,7 @@
         <!-- Charts -->
         <div class="row">
             <!-- Time Series Chart -->
-            <div class="col-lg-6 mb-4">
+            <div class="col-lg-8 mb-4">
                 <div class="chart-container">
                     <h5><i class="fas fa-chart-line text-primary"></i> People Detection Over Time</h5>
                     <div id="timeSeriesChart" class="loading">
@@ -196,7 +232,7 @@
             </div>
 
             <!-- Hourly Pattern Chart -->
-            <div class="col-lg-6 mb-4">
+            <div class="col-lg-4 mb-4">
                 <div class="chart-container">
                     <h5><i class="fas fa-chart-bar text-primary"></i> Hourly Detection Patterns</h5>
                     <div id="hourlyPatternChart" class="loading">
@@ -325,7 +361,11 @@
                     
                     if (data.error) {
                         document.getElementById(containerId).innerHTML = 
-                            `<div class="error-message">${data.error}</div>`;
+                            `<div class="error-message">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Chart Error:</strong> ${data.error}
+                                <br><small>This chart will retry automatically on next refresh.</small>
+                            </div>`;
                         return;
                     }
 
@@ -334,14 +374,19 @@
                     
                     Plotly.newPlot(containerId, data.data, data.layout, {
                         responsive: true,
-                        displayModeBar: false
+                        displayModeBar: false,
+                        modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
                     });
 
                     this.charts[containerId] = data;
                 } catch (error) {
                     console.error(`Error loading chart ${containerId}:`, error);
                     document.getElementById(containerId).innerHTML = 
-                        '<div class="error-message">Failed to load chart</div>';
+                        `<div class="error-message">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Connection Error:</strong> Failed to load chart
+                            <br><small>Check your connection and try refreshing the page.</small>
+                        </div>`;
                 }
             }
 
