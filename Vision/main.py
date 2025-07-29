@@ -83,6 +83,13 @@ class user_app_callback_class(app_callback_class):
         # This ensures data integrity when the callback runs in a separate thread
         self.csv_lock = threading.Lock()
         
+        # ===== MINUTE-BASED TRACKING =====
+        # Track people detected in the current minute (resets every minute)
+        # This ensures we count all people detected within each minute, not just the current frame
+        self.current_minute_people = set()
+        # Track the current minute we're counting (used to detect minute changes)
+        self.current_minute = int(time.time() // 60)
+        
         # Initialize the CSV file with headers when the class is created
         self.init_csv_file()
 
@@ -152,6 +159,7 @@ class user_app_callback_class(app_callback_class):
     def add_person(self, track_id):
         """
         Add a person to the tracked set and increment count if they're new.
+        Also tracks people detected in the current minute.
         
         Args:
             track_id (int): Unique track ID assigned by Hailo to this person
@@ -159,13 +167,18 @@ class user_app_callback_class(app_callback_class):
         Returns:
             bool: True if this is a new person, False if already tracked
         """
-        # Check if this track ID has been seen before
+        # Check if this track ID has been seen before (lifetime tracking)
+        is_new_person = False
         if track_id not in self.tracked_people:
             # Add to tracked set and increment total count
             self.tracked_people.add(track_id)
             self.people_count += 1
-            return True  # This is a new person
-        return False  # Person already tracked
+            is_new_person = True
+        
+        # Add to current minute tracking (resets every minute)
+        self.current_minute_people.add(track_id)
+        
+        return is_new_person  # Return whether this is a new person overall
 
 # -----------------------------------------------------------------------------------------------
 # User-defined callback function
@@ -252,15 +265,25 @@ def app_callback(pad, info, user_data):
             current_frame_people += 1
     
     # ===== CSV LOGGING LOGIC =====
-    # Check if it's time to log data to CSV (every 60 seconds)
+    # Check if we've moved to a new minute and log the previous minute's data
+    # This ensures we count all people detected within each minute, not just the current frame
     current_time = time.time()
-    if current_time - user_data.last_log_time >= 60:  # 60 seconds = 1 minute
-        # Log current people count to CSV file
-        user_data.log_to_csv(current_frame_people)
-        string_to_print += f"Logged to CSV: {current_frame_people} people in this minute, {len(user_data.tracked_people)} total unique people\n"
+    current_minute = int(current_time // 60)
+    
+    # Check if we've moved to a new minute
+    if current_minute != user_data.current_minute:
+        # We're in a new minute, log the previous minute's data
+        # This counts all unique people detected in the previous minute
+        people_in_last_minute = len(user_data.current_minute_people)
+        user_data.log_to_csv(people_in_last_minute)
+        string_to_print += f"Logged to CSV: {people_in_last_minute} people in the last minute, {len(user_data.tracked_people)} total unique people\n"
         print(f"DEBUG: CSV logging triggered at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Reset current minute tracking for the new minute
+        user_data.current_minute_people.clear()
+        user_data.current_minute = current_minute
     else:
-        # Debug: show time until next log (only print every 120 frames to avoid spam)
+        # Still in the same minute, show time until next log
         time_until_log = 60 - (current_time - user_data.last_log_time)
         if user_data.get_count() % 120 == 0:  # Print every 120 frames to avoid spam
             print(f"DEBUG: {time_until_log:.1f} seconds until next CSV log")
@@ -275,12 +298,16 @@ def app_callback(pad, info, user_data):
         cv2.putText(frame, f"Current Frame People: {current_frame_people}", (10, 30), 
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         
+        # Display people detected in current minute on video
+        cv2.putText(frame, f"Current Minute People: {len(user_data.current_minute_people)}", (10, 60), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        
         # Display total unique people count on video
-        cv2.putText(frame, f"Total Unique People: {len(user_data.tracked_people)}", (10, 60), 
+        cv2.putText(frame, f"Total Unique People: {len(user_data.tracked_people)}", (10, 90), 
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         
         # Display example text from original code (kept for compatibility)
-        cv2.putText(frame, f"{user_data.new_function()} {user_data.new_variable}", (10, 90), 
+        cv2.putText(frame, f"{user_data.new_function()} {user_data.new_variable}", (10, 120), 
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         
         # Convert frame from RGB to BGR format (OpenCV uses BGR)
