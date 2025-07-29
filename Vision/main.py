@@ -39,27 +39,39 @@ class user_app_callback_class(app_callback_class):
     
     def init_csv_file(self):
         """Initialize CSV file with headers if it doesn't exist"""
+        print(f"DEBUG: Initializing CSV file: {self.csv_file}")
         try:
             with open(self.csv_file, 'x', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(['Timestamp', 'Minute', 'People_Count', 'Total_Unique_People'])
+                print(f"DEBUG: Created new CSV file with headers: {self.csv_file}")
         except FileExistsError:
             # File already exists, don't overwrite
-            pass
+            print(f"DEBUG: CSV file already exists: {self.csv_file}")
+        except Exception as e:
+            print(f"DEBUG: Error creating CSV file: {e}")
+            print(f"DEBUG: Current working directory: {os.getcwd()}")
+            print(f"DEBUG: Absolute path: {os.path.abspath(self.csv_file)}")
     
     def log_to_csv(self, people_count):
         """Log people count to CSV file"""
         current_time = time.time()
         minute = int(current_time // 60)  # Current minute since epoch
         
+        print(f"DEBUG: Attempting to write to CSV file: {self.csv_file}")
+        print(f"DEBUG: Data to write - People count: {people_count}, Total unique: {len(self.tracked_people)}")
+        
         with self.csv_lock:
             try:
                 with open(self.csv_file, 'a', newline='') as file:
                     writer = csv.writer(file)
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    writer.writerow([timestamp, minute, people_count, len(self.tracked_people)])
+                    row_data = [timestamp, minute, people_count, len(self.tracked_people)]
+                    writer.writerow(row_data)
+                    print(f"DEBUG: Successfully wrote row to CSV: {row_data}")
             except Exception as e:
                 print(f"Error writing to CSV: {e}")
+                print(f"DEBUG: CSV file path: {os.path.abspath(self.csv_file)}")
         
         self.last_log_time = current_time
     
@@ -126,6 +138,12 @@ def app_callback(pad, info, user_data):
     if current_time - user_data.last_log_time >= 60:  # 60 seconds = 1 minute
         user_data.log_to_csv(current_frame_people)
         string_to_print += f"Logged to CSV: {current_frame_people} people in this minute, {len(user_data.tracked_people)} total unique people\n"
+        print(f"DEBUG: CSV logging triggered at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    else:
+        # Debug: show time until next log
+        time_until_log = 60 - (current_time - user_data.last_log_time)
+        if user_data.get_count() % 30 == 0:  # Print every 30 frames to avoid spam
+            print(f"DEBUG: {time_until_log:.1f} seconds until next CSV log")
     
     if user_data.use_frame:
         # Note: using imshow will not work here, as the callback function is not running in the main thread
