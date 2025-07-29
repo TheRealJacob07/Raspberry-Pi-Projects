@@ -103,7 +103,6 @@ class user_app_callback_class(app_callback_class):
         Initialize CSV file with headers if it doesn't exist.
         Creates the CSV file with proper column headers for data logging.
         """
-        print(f"DEBUG: Initializing CSV file: {self.csv_file}")
         try:
             # Try to create a new CSV file with headers
             # 'x' mode creates the file only if it doesn't exist
@@ -111,26 +110,20 @@ class user_app_callback_class(app_callback_class):
                 writer = csv.writer(file)
                 # Write column headers for the CSV file
                 writer.writerow(['Timestamp', 'Minute', 'People_Count', 'Total_Unique_People'])
-                print(f"DEBUG: Created new CSV file with headers: {self.csv_file}")
         except FileExistsError:
             # File already exists, don't overwrite (preserve existing data)
-            print(f"DEBUG: CSV file already exists: {self.csv_file}")
             # Check if file is empty and add headers if needed
             try:
                 with open(self.csv_file, 'r', newline='', encoding='utf-8') as file:
                     content = file.read().strip()
                     if not content:
-                        print(f"DEBUG: CSV file is empty, adding headers")
                         with open(self.csv_file, 'w', newline='', encoding='utf-8') as file:
                             writer = csv.writer(file)
                             writer.writerow(['Timestamp', 'Minute', 'People_Count', 'Total_Unique_People'])
-            except Exception as e:
-                print(f"DEBUG: Error checking/updating existing CSV file: {e}")
-        except Exception as e:
-            # Handle any other errors during file creation
-            print(f"DEBUG: Error creating CSV file: {e}")
-            print(f"DEBUG: Current working directory: {os.getcwd()}")
-            print(f"DEBUG: Absolute path: {os.path.abspath(self.csv_file)}")
+            except Exception:
+                pass
+        except Exception:
+            pass
     
     def log_to_csv(self, people_count):
         """
@@ -143,9 +136,6 @@ class user_app_callback_class(app_callback_class):
         current_time = time.time()
         # Calculate current minute since epoch (used for grouping data)
         minute = int(current_time // 60)
-        
-        print(f"DEBUG: Attempting to write to CSV file: {self.csv_file}")
-        print(f"DEBUG: Data to write - People count: {people_count}, Total unique: {len(self.tracked_people)}")
         
         # Use thread lock to prevent multiple threads from writing simultaneously
         with self.csv_lock:
@@ -161,39 +151,12 @@ class user_app_callback_class(app_callback_class):
                     writer.writerow(row_data)
                     # Force flush to ensure data is written immediately
                     file.flush()
-                    print(f"DEBUG: Successfully wrote row to CSV: {row_data}")
             except Exception as e:
                 # Handle any errors during CSV writing
                 print(f"Error writing to CSV: {e}")
-                print(f"DEBUG: CSV file path: {os.path.abspath(self.csv_file)}")
-                print(f"DEBUG: File exists: {os.path.exists(self.csv_file)}")
-                print(f"DEBUG: File permissions: {oct(os.stat(self.csv_file).st_mode)[-3:] if os.path.exists(self.csv_file) else 'N/A'}")
         
         # Update the last log time to current time
         self.last_log_time = current_time
-    
-    def test_log_to_csv(self):
-        """
-        Test function to immediately log current data to CSV for testing purposes.
-        This bypasses the minute-based logging to help debug CSV writing issues.
-        """
-        current_time = time.time()
-        minute = int(current_time // 60)
-        
-        print(f"DEBUG: TEST - Attempting to write to CSV file: {self.csv_file}")
-        
-        with self.csv_lock:
-            try:
-                with open(self.csv_file, 'a', newline='', encoding='utf-8') as file:
-                    writer = csv.writer(file)
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    row_data = [timestamp, minute, len(self.current_minute_people), len(self.tracked_people)]
-                    writer.writerow(row_data)
-                    file.flush()
-                    print(f"DEBUG: TEST - Successfully wrote test row to CSV: {row_data}")
-            except Exception as e:
-                print(f"DEBUG: TEST - Error writing to CSV: {e}")
-                print(f"DEBUG: TEST - CSV file path: {os.path.abspath(self.csv_file)}")
     
     def add_person(self, track_id):
         """
@@ -298,17 +261,12 @@ def app_callback(pad, info, user_data):
             if is_new_person:
                 string_to_print = f"NEW PERSON DETECTED: ID: {track_id} Label: {label} Confidence: {confidence:.2f}\n"
                 # Immediately log to CSV for testing when a new person is detected
-                user_data.test_log_to_csv()
+                user_data.log_to_csv(len(user_data.current_minute_people)) # Log current minute people
             else:
                 string_to_print = f"Detection: ID: {track_id} Label: {label} Confidence: {confidence:.2f}\n"
             
             # Increment current frame people count
             current_frame_people += 1
-    
-    # ===== TEST LOGGING (every 30 frames for debugging) =====
-    if user_data.get_count() % 30 == 0 and user_data.get_count() > 0:
-        print(f"DEBUG: Frame {user_data.get_count()}, testing CSV write...")
-        user_data.test_log_to_csv()
     
     # ===== CSV LOGGING LOGIC =====
     # Check if we've moved to a new minute and log the previous minute's data
@@ -323,7 +281,6 @@ def app_callback(pad, info, user_data):
         people_in_last_minute = len(user_data.current_minute_people)
         user_data.log_to_csv(people_in_last_minute)
         string_to_print += f"Logged to CSV: {people_in_last_minute} people in the last minute, {len(user_data.tracked_people)} total unique people\n"
-        print(f"DEBUG: CSV logging triggered at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
         # Reset current minute tracking for the new minute
         user_data.current_minute_people.clear()
@@ -332,7 +289,7 @@ def app_callback(pad, info, user_data):
         # Still in the same minute, show time until next log
         time_until_log = 60 - (current_time - user_data.last_log_time)
         if user_data.get_count() % 120 == 0:  # Print every 120 frames to avoid spam
-            print(f"DEBUG: {time_until_log:.1f} seconds until next CSV log")
+            pass  # Removed debug print
     
     # ===== VIDEO FRAME ANNOTATION =====
     # Add visual information to the video frame if frame processing is enabled
@@ -391,11 +348,6 @@ if __name__ == "__main__":
     # Create an instance of our custom callback class
     # This object will manage all the people counting and CSV logging functionality
     user_data = user_app_callback_class()
-    
-    # ===== TEST CSV WRITING =====
-    print("DEBUG: Testing CSV writing before starting detection...")
-    user_data.test_log_to_csv()
-    print("DEBUG: CSV test completed")
     
     # Create the GStreamer detection application
     # This sets up the video pipeline, Hailo AI processing, and connects our callback
