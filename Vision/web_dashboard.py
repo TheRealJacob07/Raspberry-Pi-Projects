@@ -30,6 +30,11 @@ import time
 import warnings
 warnings.filterwarnings('ignore')
 
+# Configure Plotly to disable debug mode
+import plotly.io as pio
+pio.renderers.default = "browser"
+pio.templates.default = "plotly_white"
+
 class PeopleCounterDashboard:
     """Web dashboard for people counter data visualization."""
     
@@ -50,6 +55,8 @@ class PeopleCounterDashboard:
         self.host = host
         self.port = port
         self.app = Flask(__name__)
+        self.app.config['DEBUG'] = False
+        self.app.config['TESTING'] = False
         self.data = None
         self.last_modified = 0
         
@@ -260,7 +267,11 @@ class PeopleCounterDashboard:
                     xaxis_title='Time',
                     yaxis_title='People Count',
                     hovermode='x unified',
-                    height=500
+                    height=500,
+                    showlegend=True,
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(l=50, r=50, t=50, b=50)
                 )
                 
                 return jsonify(json.loads(fig.to_json()))
@@ -305,7 +316,11 @@ class PeopleCounterDashboard:
                 xaxis_title='Hour of Day',
                 yaxis_title='People Count',
                 barmode='group',
-                height=500
+                height=500,
+                showlegend=True,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                margin=dict(l=50, r=50, t=50, b=50)
             )
             
             return jsonify(json.loads(fig.to_json()))
@@ -348,7 +363,11 @@ class PeopleCounterDashboard:
                 xaxis_title='Date',
                 yaxis_title='People Count',
                 barmode='group',
-                height=500
+                height=500,
+                showlegend=True,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                margin=dict(l=50, r=50, t=50, b=50)
             )
             
             return jsonify(json.loads(fig.to_json()))
@@ -407,7 +426,11 @@ class PeopleCounterDashboard:
                     title='People Detection Heatmap: Average Count by Hour and Day',
                     xaxis_title='Hour of Day',
                     yaxis_title='Day of Week',
-                    height=500
+                    height=500,
+                    showlegend=False,
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    margin=dict(l=50, r=50, t=50, b=50)
                 )
                 
                 return jsonify(json.loads(fig.to_json()))

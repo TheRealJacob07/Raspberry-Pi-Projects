@@ -134,6 +134,49 @@
             opacity: 0.8;
         }
         
+        /* Hide any debug overlays or unwanted elements */
+        .debug-overlay, 
+        .plotly-debug,
+        [class*="debug"],
+        [class*="Debug"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+        }
+        
+        /* Ensure chart containers are clean */
+        .chart-container > div {
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Hide any Plotly debug information */
+        .js-plotly-plot .plotly .main-svg .debug-info,
+        .js-plotly-plot .plotly .main-svg .debug-overlay {
+            display: none !important;
+        }
+        
+        /* Hide any red text overlays */
+        .chart-container *[style*="color: red"],
+        .chart-container *[style*="color: #ff0000"],
+        .chart-container *[style*="color: rgb(255, 0, 0)"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+        }
+        
+        /* Ensure chart containers are properly positioned */
+        .chart-container {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Hide any unwanted overlays */
+        .chart-container > div:not(:first-child) {
+            position: relative;
+            z-index: 1;
+        }
+        
         @media (max-width: 768px) {
             .stat-value {
                 font-size: 2rem;
@@ -375,8 +418,14 @@
                     Plotly.newPlot(containerId, data.data, data.layout, {
                         responsive: true,
                         displayModeBar: false,
-                        modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d']
+                        modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+                        displaylogo: false,
+                        showTips: false,
+                        staticPlot: false
                     });
+
+                    // Clean up any debug elements that might appear
+                    this.cleanupDebugElements(containerId);
 
                     this.charts[containerId] = data;
                 } catch (error) {
@@ -390,6 +439,28 @@
                 }
             }
 
+            cleanupDebugElements(containerId) {
+                // Remove any debug overlays or unwanted elements
+                const container = document.getElementById(containerId);
+                if (container) {
+                    // Remove elements with debug-related classes or attributes
+                    const debugElements = container.querySelectorAll('[class*="debug"], [class*="Debug"], .debug-overlay, .plotly-debug');
+                    debugElements.forEach(el => {
+                        el.style.display = 'none';
+                        el.style.visibility = 'hidden';
+                        el.style.opacity = '0';
+                    });
+                    
+                    // Remove any red text overlays
+                    const redTextElements = container.querySelectorAll('*');
+                    redTextElements.forEach(el => {
+                        if (el.style.color === 'red' || el.style.color === '#ff0000') {
+                            el.style.display = 'none';
+                        }
+                    });
+                }
+            }
+
             refreshData() {
                 this.loadData();
                 this.loadCharts();
@@ -399,6 +470,19 @@
                 setInterval(() => {
                     this.refreshData();
                 }, this.refreshInterval);
+                
+                // Periodic cleanup of debug elements
+                setInterval(() => {
+                    this.cleanupAllDebugElements();
+                }, 2000); // Check every 2 seconds
+            }
+
+            cleanupAllDebugElements() {
+                // Clean up debug elements from all chart containers
+                const chartContainers = ['timeSeriesChart', 'hourlyPatternChart', 'dailySummaryChart', 'heatmapChart'];
+                chartContainers.forEach(containerId => {
+                    this.cleanupDebugElements(containerId);
+                });
             }
 
             updateStatus(message, type) {
