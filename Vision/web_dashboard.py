@@ -271,7 +271,9 @@ class PeopleCounterDashboard:
                     showlegend=True,
                     plot_bgcolor='rgba(0,0,0,0)',
                     paper_bgcolor='rgba(0,0,0,0)',
-                    margin=dict(l=50, r=50, t=50, b=50)
+                    margin=dict(l=50, r=50, t=50, b=50),
+                    autosize=True,
+                    width=None
                 )
                 
                 return jsonify(json.loads(fig.to_json()))
@@ -320,7 +322,9 @@ class PeopleCounterDashboard:
                 showlegend=True,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=50, r=50, t=50, b=50)
+                margin=dict(l=50, r=50, t=50, b=50),
+                autosize=True,
+                width=None
             )
             
             return jsonify(json.loads(fig.to_json()))
@@ -367,7 +371,9 @@ class PeopleCounterDashboard:
                 showlegend=True,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=50, r=50, t=50, b=50)
+                margin=dict(l=50, r=50, t=50, b=50),
+                autosize=True,
+                width=None
             )
             
             return jsonify(json.loads(fig.to_json()))
@@ -430,7 +436,9 @@ class PeopleCounterDashboard:
                     showlegend=False,
                     plot_bgcolor='rgba(0,0,0,0)',
                     paper_bgcolor='rgba(0,0,0,0)',
-                    margin=dict(l=50, r=50, t=50, b=50)
+                    margin=dict(l=50, r=50, t=50, b=50),
+                    autosize=True,
+                    width=None
                 )
                 
                 return jsonify(json.loads(fig.to_json()))

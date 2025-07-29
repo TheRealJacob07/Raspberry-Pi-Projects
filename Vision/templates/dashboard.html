@@ -51,6 +51,8 @@
             min-height: 400px;
             display: flex;
             flex-direction: column;
+            position: relative;
+            overflow: visible;
         }
         
         .chart-container h5 {
@@ -64,6 +66,24 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Ensure Plotly charts are properly centered */
+        .js-plotly-plot {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        .js-plotly-plot .plotly {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        .js-plotly-plot .plotly .main-svg {
+            width: 100% !important;
+            height: 100% !important;
         }
         
         .stat-value {
@@ -168,13 +188,39 @@
         /* Ensure chart containers are properly positioned */
         .chart-container {
             position: relative;
-            overflow: hidden;
+            overflow: visible;
+            text-align: center;
         }
         
         /* Hide any unwanted overlays */
         .chart-container > div:not(:first-child) {
             position: relative;
             z-index: 1;
+        }
+        
+        /* Fix chart alignment and sizing */
+        #timeSeriesChart,
+        #hourlyPatternChart,
+        #dailySummaryChart,
+        #heatmapChart {
+            width: 100% !important;
+            height: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        
+        /* Ensure Plotly charts fill their containers properly */
+        .js-plotly-plot .plotly .main-svg {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: none !important;
+        }
+        
+        /* Fix any margin or padding issues */
+        .chart-container .js-plotly-plot {
+            margin: 0 !important;
+            padding: 0 !important;
         }
         
         @media (max-width: 768px) {
@@ -223,7 +269,7 @@
     <!-- Main Content -->
     <div class="container-fluid py-4">
         <!-- Statistics Cards -->
-        <div class="row mb-4" id="statsCards">
+        <div class="row mb-4 justify-content-center" id="statsCards">
             <div class="col-lg-3 col-md-6 mb-3">
                 <div class="stats-card p-4 text-center">
                     <div class="stat-icon mb-2">
@@ -263,7 +309,7 @@
         </div>
 
         <!-- Charts -->
-        <div class="row">
+        <div class="row justify-content-center">
             <!-- Time Series Chart -->
             <div class="col-lg-8 mb-4">
                 <div class="chart-container">
@@ -421,11 +467,16 @@
                         modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
                         displaylogo: false,
                         showTips: false,
-                        staticPlot: false
+                        staticPlot: false,
+                        useResizeHandler: true,
+                        autosize: true
                     });
 
                     // Clean up any debug elements that might appear
                     this.cleanupDebugElements(containerId);
+
+                    // Ensure proper chart sizing and centering
+                    this.resizeChart(containerId);
 
                     this.charts[containerId] = data;
                 } catch (error) {
@@ -483,6 +534,27 @@
                 chartContainers.forEach(containerId => {
                     this.cleanupDebugElements(containerId);
                 });
+            }
+
+            resizeChart(containerId) {
+                // Ensure the chart is properly sized and centered
+                const container = document.getElementById(containerId);
+                if (container && container.querySelector('.js-plotly-plot')) {
+                    // Trigger a resize event to ensure proper sizing
+                    window.dispatchEvent(new Event('resize'));
+                    
+                    // Force the chart to redraw with proper dimensions
+                    setTimeout(() => {
+                        const plotElement = container.querySelector('.js-plotly-plot');
+                        if (plotElement && plotElement._fullLayout) {
+                            Plotly.relayout(containerId, {
+                                autosize: true,
+                                width: container.offsetWidth,
+                                height: container.offsetHeight
+                            });
+                        }
+                    }, 100);
+                }
             }
 
             updateStatus(message, type) {
