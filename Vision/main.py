@@ -84,12 +84,20 @@ class user_app_callback_class(app_callback_class):
         # This ensures data integrity when the callback runs in a separate thread
         self.csv_lock = threading.Lock()
         
-        # ===== MINUTE-BASED TRACKING =====
-        # Track people detected in the current minute (resets every minute)
-        # This ensures we count all people detected within each minute, not just the current frame
+        # ===== ENHANCED TIME-BASED TRACKING =====
+        # Track people detected in different time periods
         self.current_minute_people = set()
-        # Track the current minute we're counting (used to detect minute changes)
+        self.current_hour_people = set()
+        self.current_day_people = set()
+        
+        # Track the current time periods we're counting
         self.current_minute = int(time.time() // 60)
+        self.current_hour = int(time.time() // 3600)
+        self.current_day = int(time.time() // 86400)
+        
+        # ===== DEBUGGING VARIABLES =====
+        # Last debug time for 10-second updates
+        self.last_debug_time = time.time()
         
         # Initialize the CSV file with headers when the class is created
         self.init_csv_file()
@@ -108,8 +116,8 @@ class user_app_callback_class(app_callback_class):
             # 'x' mode creates the file only if it doesn't exist
             with open(self.csv_file, 'x', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
-                # Write column headers for the CSV file
-                writer.writerow(['Timestamp', 'Minute', 'People_Count', 'Total_Unique_People'])
+                # Write column headers for the CSV file with enhanced statistics
+                writer.writerow(['Timestamp', 'Minute', 'Hour', 'Day', 'People_This_Minute', 'People_This_Hour', 'People_This_Day', 'Total_Unique_People'])
         except FileExistsError:
             # File already exists, don't overwrite (preserve existing data)
             # Check if file is empty and add headers if needed
@@ -119,7 +127,7 @@ class user_app_callback_class(app_callback_class):
                     if not content:
                         with open(self.csv_file, 'w', newline='', encoding='utf-8') as file:
                             writer = csv.writer(file)
-                            writer.writerow(['Timestamp', 'Minute', 'People_Count', 'Total_Unique_People'])
+                            writer.writerow(['Timestamp', 'Minute', 'Hour', 'Day', 'People_This_Minute', 'People_This_Hour', 'People_This_Day', 'Total_Unique_People'])
             except Exception:
                 pass
         except Exception:
@@ -134,8 +142,10 @@ class user_app_callback_class(app_callback_class):
         """
         # Get current timestamp for logging
         current_time = time.time()
-        # Calculate current minute since epoch (used for grouping data)
+        # Calculate current time periods since epoch
         minute = int(current_time // 60)
+        hour = int(current_time // 3600)
+        day = int(current_time // 86400)
         
         # Use thread lock to prevent multiple threads from writing simultaneously
         with self.csv_lock:
@@ -145,8 +155,8 @@ class user_app_callback_class(app_callback_class):
                     writer = csv.writer(file)
                     # Format current timestamp for human readability
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    # Prepare row data for CSV
-                    row_data = [timestamp, minute, people_count, len(self.tracked_people)]
+                    # Prepare row data for CSV with enhanced statistics
+                    row_data = [timestamp, minute, hour, day, len(self.current_minute_people), len(self.current_hour_people), len(self.current_day_people), len(self.tracked_people)]
                     # Write the data row to CSV
                     writer.writerow(row_data)
                     # Force flush to ensure data is written immediately
@@ -158,10 +168,26 @@ class user_app_callback_class(app_callback_class):
         # Update the last log time to current time
         self.last_log_time = current_time
     
+    def debug_status(self):
+        """
+        Print debug status every 10 seconds with current statistics.
+        """
+        current_time = time.time()
+        if current_time - self.last_debug_time >= 10:  # Every 10 seconds
+            print(f"\n=== DEBUG STATUS ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')}) ===")
+            print(f"Current Minute People: {len(self.current_minute_people)}")
+            print(f"Current Hour People: {len(self.current_hour_people)}")
+            print(f"Current Day People: {len(self.current_day_people)}")
+            print(f"Total Unique People: {len(self.tracked_people)}")
+            print(f"Frame Count: {self.get_count()}")
+            print(f"Time until next CSV log: {60 - (current_time - self.last_log_time):.1f} seconds")
+            print("=" * 50)
+            self.last_debug_time = current_time
+    
     def add_person(self, track_id):
         """
         Add a person to the tracked set and increment count if they're new.
-        Also tracks people detected in the current minute.
+        Also tracks people detected in the current minute, hour, and day.
         
         Args:
             track_id (int): Unique track ID assigned by Hailo to this person
@@ -177,8 +203,10 @@ class user_app_callback_class(app_callback_class):
             self.people_count += 1
             is_new_person = True
         
-        # Add to current minute tracking (resets every minute)
+        # Add to all current time period tracking
         self.current_minute_people.add(track_id)
+        self.current_hour_people.add(track_id)
+        self.current_day_people.add(track_id)
         
         return is_new_person  # Return whether this is a new person overall
 
@@ -245,6 +273,11 @@ def app_callback(pad, info, user_data):
         
         # Only process person detections
         if label == "person":
+            # ===== CONFIDENCE THRESHOLD CHECK =====
+            # Only count people with 70% or higher confidence
+            if confidence < 0.70:
+                continue  # Skip this detection if confidence is too low
+            
             # ===== TRACKING ID EXTRACTION =====
             # Get the unique track ID for this person
             # Track IDs persist across frames to identify the same person
@@ -269,15 +302,16 @@ def app_callback(pad, info, user_data):
             current_frame_people += 1
     
     # ===== CSV LOGGING LOGIC =====
-    # Check if we've moved to a new minute and log the previous minute's data
-    # This ensures we count all people detected within each minute, not just the current frame
+    # Check if we've moved to a new time period and log the previous period's data
+    # This ensures we count all people detected within each time period, not just the current frame
     current_time = time.time()
     current_minute = int(current_time // 60)
+    current_hour = int(current_time // 3600)
+    current_day = int(current_time // 86400)
     
     # Check if we've moved to a new minute
     if current_minute != user_data.current_minute:
         # We're in a new minute, log the previous minute's data
-        # This counts all unique people detected in the previous minute
         people_in_last_minute = len(user_data.current_minute_people)
         user_data.log_to_csv(people_in_last_minute)
         string_to_print += f"Logged to CSV: {people_in_last_minute} people in the last minute, {len(user_data.tracked_people)} total unique people\n"
@@ -285,11 +319,21 @@ def app_callback(pad, info, user_data):
         # Reset current minute tracking for the new minute
         user_data.current_minute_people.clear()
         user_data.current_minute = current_minute
-    else:
-        # Still in the same minute, show time until next log
-        time_until_log = 60 - (current_time - user_data.last_log_time)
-        if user_data.get_count() % 120 == 0:  # Print every 120 frames to avoid spam
-            pass  # Removed debug print
+    
+    # Check if we've moved to a new hour
+    if current_hour != user_data.current_hour:
+        # Reset current hour tracking for the new hour
+        user_data.current_hour_people.clear()
+        user_data.current_hour = current_hour
+    
+    # Check if we've moved to a new day
+    if current_day != user_data.current_day:
+        # Reset current day tracking for the new day
+        user_data.current_day_people.clear()
+        user_data.current_day = current_day
+    
+    # ===== DEBUG STATUS (every 10 seconds) =====
+    user_data.debug_status()
     
     # ===== VIDEO FRAME ANNOTATION =====
     # Add visual information to the video frame if frame processing is enabled
@@ -305,12 +349,20 @@ def app_callback(pad, info, user_data):
         cv2.putText(frame, f"Current Minute People: {len(user_data.current_minute_people)}", (10, 60), 
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         
+        # Display people detected in current hour on video
+        cv2.putText(frame, f"Current Hour People: {len(user_data.current_hour_people)}", (10, 90), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        
+        # Display people detected in current day on video
+        cv2.putText(frame, f"Current Day People: {len(user_data.current_day_people)}", (10, 120), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        
         # Display total unique people count on video
-        cv2.putText(frame, f"Total Unique People: {len(user_data.tracked_people)}", (10, 90), 
+        cv2.putText(frame, f"Total Unique People: {len(user_data.tracked_people)}", (10, 150), 
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         
         # Display example text from original code (kept for compatibility)
-        cv2.putText(frame, f"{user_data.new_function()} {user_data.new_variable}", (10, 120), 
+        cv2.putText(frame, f"{user_data.new_function()} {user_data.new_variable}", (10, 180), 
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         
         # Convert frame from RGB to BGR format (OpenCV uses BGR)
