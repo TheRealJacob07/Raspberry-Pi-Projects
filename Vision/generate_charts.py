@@ -53,6 +53,9 @@ class PeopleCounterChartGenerator:
     def load_data(self):
         """Load and preprocess the CSV data."""
         try:
+            # First, try to read the file and see what we get
+            print(f"DEBUG: Attempting to read CSV file: {self.csv_file_path}")
+            
             # Read CSV file, skipping comment lines
             self.data = pd.read_csv(self.csv_file_path, comment='#')
             
@@ -61,6 +64,11 @@ class PeopleCounterChartGenerator:
             print(f"DEBUG: First few rows:")
             print(self.data.head())
             
+            # Check if we have the expected number of columns
+            if len(self.data.columns) != 8:
+                print(f"WARNING: Expected 8 columns, found {len(self.data.columns)}")
+                print(f"Columns: {list(self.data.columns)}")
+            
             # Check if required columns exist
             required_columns = ['Timestamp', 'Minute', 'Hour', 'Day', 'People_This_Minute', 'People_This_Hour', 'People_This_Day', 'Total_Unique_People']
             missing_columns = [col for col in required_columns if col not in self.data.columns]
@@ -68,7 +76,21 @@ class PeopleCounterChartGenerator:
             if missing_columns:
                 print(f"ERROR: Missing required columns: {missing_columns}")
                 print(f"Available columns: {list(self.data.columns)}")
-                return
+                
+                # Try to fix common issues
+                if len(self.data.columns) == 1 and '#' in str(self.data.columns[0]):
+                    print("Detected malformed header. Attempting to fix...")
+                    # Try reading again with different parameters
+                    self.data = pd.read_csv(self.csv_file_path, comment='#', skip_blank_lines=True)
+                    print(f"After fix attempt - columns: {list(self.data.columns)}")
+                    
+                    # Check again
+                    missing_columns = [col for col in required_columns if col not in self.data.columns]
+                    if missing_columns:
+                        print(f"Still missing columns: {missing_columns}")
+                        return
+                else:
+                    return
             
             # Convert timestamp to datetime
             self.data['Timestamp'] = pd.to_datetime(self.data['Timestamp'])
