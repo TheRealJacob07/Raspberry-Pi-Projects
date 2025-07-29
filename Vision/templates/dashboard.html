@@ -185,6 +185,23 @@
             opacity: 0 !important;
         }
         
+        /* Hide any text elements with red color */
+        .chart-container * {
+            color: inherit !important;
+        }
+        
+        /* Hide any elements with debug-related text content */
+        .chart-container *:not(.js-plotly-plot):not(.plotly):not(.main-svg):not(.bglayer):not(.draglayer) {
+            color: transparent !important;
+            background: transparent !important;
+        }
+        
+        /* Ensure only Plotly chart elements are visible */
+        .chart-container .js-plotly-plot,
+        .chart-container .js-plotly-plot * {
+            color: inherit !important;
+        }
+        
         /* Ensure chart containers are properly positioned */
         .chart-container {
             position: relative;
@@ -508,6 +525,31 @@
                         if (el.style.color === 'red' || el.style.color === '#ff0000') {
                             el.style.display = 'none';
                         }
+                        
+                        // Remove any text nodes that contain debug information
+                        if (el.childNodes) {
+                            el.childNodes.forEach(node => {
+                                if (node.nodeType === Node.TEXT_NODE && 
+                                    (node.textContent.includes('plotly') || 
+                                     node.textContent.includes('debug') ||
+                                     node.textContent.includes('hover') ||
+                                     node.textContent.includes('template'))) {
+                                    node.remove();
+                                }
+                            });
+                        }
+                    });
+                    
+                    // Hide any elements that are not part of the actual chart
+                    const allElements = container.querySelectorAll('*');
+                    allElements.forEach(el => {
+                        if (!el.classList.contains('js-plotly-plot') && 
+                            !el.classList.contains('plotly') && 
+                            !el.classList.contains('main-svg') &&
+                            el.style.color === 'red') {
+                            el.style.display = 'none';
+                            el.style.visibility = 'hidden';
+                        }
                     });
                 }
             }
@@ -575,6 +617,12 @@
         // Initialize dashboard when page loads
         document.addEventListener('DOMContentLoaded', () => {
             new Dashboard();
+            
+            // Immediate cleanup of any debug elements
+            setTimeout(() => {
+                const dashboard = new Dashboard();
+                dashboard.cleanupAllDebugElements();
+            }, 100);
         });
     </script>
 </body>

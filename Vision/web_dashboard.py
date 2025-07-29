@@ -67,6 +67,35 @@ class PeopleCounterDashboard:
         self.monitor_thread = threading.Thread(target=self._monitor_data_changes, daemon=True)
         self.monitor_thread.start()
     
+    def clean_chart_data(self, fig):
+        """Clean chart data to remove debug information and internal properties."""
+        try:
+            # Convert to JSON and back to remove internal properties
+            chart_data = json.loads(fig.to_json())
+            
+            # Remove any debug or internal properties from data traces
+            if 'data' in chart_data:
+                for trace in chart_data['data']:
+                    # Remove internal Plotly properties that might cause debug output
+                    keys_to_remove = [key for key in trace.keys() 
+                                    if key.startswith('_') or key in ['uid', 'source', 'stream', 'transforms', 'hoverinfo']]
+                    for key in keys_to_remove:
+                        del trace[key]
+            
+            # Clean layout properties
+            if 'layout' in chart_data:
+                layout = chart_data['layout']
+                keys_to_remove = [key for key in layout.keys() 
+                                if key.startswith('_') or key in ['uid', 'source', 'stream']]
+                for key in keys_to_remove:
+                    del layout[key]
+            
+            return chart_data
+        except Exception as e:
+            print(f"Error cleaning chart data: {e}")
+            # Fallback to original method
+            return json.loads(fig.to_json())
+    
     def load_data(self):
         """Load and preprocess the CSV data."""
         try:
@@ -276,7 +305,7 @@ class PeopleCounterDashboard:
                     width=None
                 )
                 
-                return jsonify(json.loads(fig.to_json()))
+                return jsonify(self.clean_chart_data(fig))
             except Exception as e:
                 print(f"Error creating time series chart: {e}")
                 return jsonify({'error': f'Error creating chart: {str(e)}'})
@@ -327,7 +356,7 @@ class PeopleCounterDashboard:
                 width=None
             )
             
-            return jsonify(json.loads(fig.to_json()))
+            return jsonify(self.clean_chart_data(fig))
         
         @self.app.route('/api/chart/daily_summary')
         def daily_summary_chart():
@@ -376,7 +405,7 @@ class PeopleCounterDashboard:
                 width=None
             )
             
-            return jsonify(json.loads(fig.to_json()))
+            return jsonify(self.clean_chart_data(fig))
         
         @self.app.route('/api/chart/heatmap')
         def heatmap_chart():
@@ -441,7 +470,7 @@ class PeopleCounterDashboard:
                     width=None
                 )
                 
-                return jsonify(json.loads(fig.to_json()))
+                return jsonify(self.clean_chart_data(fig))
             except Exception as e:
                 print(f"Error creating heatmap chart: {e}")
                 import traceback
