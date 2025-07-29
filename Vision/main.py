@@ -220,7 +220,7 @@ def app_callback(pad, info, user_data):
     # ===== PEOPLE COUNTING LOGIC =====
     # Count people detected in the current frame
     current_frame_people = 0
-    
+    string_to_print = ""
     # Process each detected object
     for detection in detections:
         # Extract detection information
@@ -290,7 +290,8 @@ def app_callback(pad, info, user_data):
         user_data.set_frame(frame)
 
     # Print detection information to console for monitoring
-    print(string_to_print)
+    if string_to_print != "":
+        print(string_to_print)
     
     # Return OK to indicate successful processing
     return Gst.PadProbeReturn.OK
