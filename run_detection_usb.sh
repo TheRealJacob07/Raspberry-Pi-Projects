@@ -22,7 +22,7 @@ if [ ! -f "People-Counter/main.py" ]; then
 fi
 
 echo "Running detection script..."
-gnome-terminal -- python People-Counter/main.py --input usb
+python People-Counter/main.py --input usb
 
 # Check if the script ran successfully
 if [ $? -eq 0 ]; then
