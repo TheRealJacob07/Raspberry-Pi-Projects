@@ -23,23 +23,25 @@ This repository contains a collection of Raspberry Pi projects that leverage **H
 
 ```
 Raspberry-Pi-Projects/
-├── Vision/                          # Main vision processing application
-│   ├── main.py                      # Enhanced people counting with CSV logging
-│   ├── debug_csv.py                 # CSV functionality testing
-│   └── README.md                    # Vision-specific documentation
+├── People-Counter/                   # AI-powered people counting application
+│   ├── main.py                       # Enhanced people counting with CSV logging
+│   └── people_count_log.csv          # People counting data log
 ├── Resources/
-│   └── hailo-rpi5-examples-main/    # Hailo official examples
-│       ├── basic_pipelines/         # Core AI pipeline examples
-│       └── community_projects/      # Community-built applications
-├── config.yaml                      # Configuration files
-├── requirements.txt                 # Python dependencies
-└── install.sh                       # Installation script
+│   └── hailo-rpi5-examples-main/     # Hailo official examples
+│       ├── basic_pipelines/          # Core AI pipeline examples
+│       └── community_projects/       # Community-built applications
+├── config.yaml                       # Configuration file for Hailo setup
+├── requirements.txt                  # Python dependencies
+├── install.sh                        # Main installation script
+├── setup_env.sh                      # Environment setup script
+├── download_resources.sh             # Resource download script
+└── hailo_python_installation.sh      # Hailo Python installation
 ```
 
 ## 🎯 Current Applications
 
-### 1. Vision People Counter (`Vision/main.py`)
-**Enhanced with AI-powered people counting and analytics**
+### 1. AI-Powered People Counter (`People-Counter/main.py`)
+**Real-time people detection and counting with analytics**
 
 **Features:**
 - Real-time people detection using Hailo AI
@@ -47,18 +49,26 @@ Raspberry-Pi-Projects/
 - Minute-by-minute CSV logging of people counts
 - Visual display of current and total counts on video feed
 - Thread-safe CSV operations with error handling
+- Performance monitoring and debugging capabilities
 
 **Technical Details:**
-- Uses Hailo's object detection pipeline
-- Tracks unique individuals via track IDs
-- Logs data to `people_count_log.csv` every minute
-- Displays statistics on video frames in real-time
+- Uses Hailo's object detection pipeline optimized for person detection
+- Tracks unique individuals via track IDs to prevent double counting
+- Logs data to `people_count_log.csv` every minute with timestamps
+- Displays real-time statistics on video frames
+- Includes comprehensive error handling and recovery mechanisms
 
 **CSV Output Format:**
 ```csv
 Timestamp,Minute,People_Count,Total_Unique_People
 2024-01-15 14:30:00,1234567,3,5
 2024-01-15 14:31:00,1234568,2,7
+```
+
+**Usage:**
+```bash
+cd People-Counter
+python main.py
 ```
 
 ## 🔧 Hailo Basic Pipelines
@@ -97,7 +107,7 @@ The `Resources/hailo-rpi5-examples-main/community_projects/` directory showcases
 ### **Robotics & Automation**
 - **TAILO**: Smart pet monitoring and interaction system
 - **NavigAItor**: Autonomous robot navigation using visual landmarks
-- **ChessMate**: Robotic chess system with AI-powered gameplay
+- **RoboChess**: Robotic chess system with AI-powered gameplay
 
 ### **Creative & Interactive**
 - **TEMPO**: Biofeedback AI music generation based on heart rate
@@ -116,8 +126,22 @@ The `Resources/hailo-rpi5-examples-main/community_projects/` directory showcases
 - Hailo AI processor/accelerator
 - Python 3.8+
 - GStreamer 1.0
+- USB camera or Raspberry Pi Camera Module
+
+### Configuration
+The project uses `config.yaml` to configure Hailo installation parameters:
+
+```yaml
+# Key configuration options:
+hailo_apps_infra_branch_tag: "25.7.0"  # Hailo Apps Infra version
+hailort_version: "auto"                # HailoRT version (auto-detect)
+tappas_version: "auto"                 # Tappas version (auto-detect)
+model_zoo_version: "v2.14.0"          # Model Zoo version
+virtual_env_name: "venv_hailo_rpi_examples"  # Virtual environment name
+```
 
 ### Quick Start
+
 1. **Clone the repository:**
    ```bash
    git clone <repository-url>
@@ -126,7 +150,14 @@ The `Resources/hailo-rpi5-examples-main/community_projects/` directory showcases
 
 2. **Install dependencies:**
    ```bash
+   # Basic installation
    ./install.sh
+   
+   # Installation with custom options:
+   ./install.sh --all                    # Download all resources
+   ./install.sh --no-installation        # Skip installation, download only
+   ./install.sh -h /path/to/pyhailort    # Custom PyHailoRT path
+   ./install.sh -p /path/to/pytappas     # Custom PyTappas path
    ```
 
 3. **Set up Hailo environment:**
@@ -134,11 +165,25 @@ The `Resources/hailo-rpi5-examples-main/community_projects/` directory showcases
    ./setup_env.sh
    ```
 
-4. **Run the people counter:**
+4. **Download additional resources (optional):**
    ```bash
-   cd Vision
+   ./download_resources.sh
+   ```
+
+5. **Run the people counter:**
+   ```bash
+   cd People-Counter
    python main.py
    ```
+
+### Installation Script Options
+
+The `install.sh` script supports several command-line options:
+
+- `--all`: Download all available resources and models
+- `--no-installation`: Skip the installation step, only download resources
+- `-h, --pyhailort <path>`: Specify custom PyHailoRT installation path
+- `-p, --pytappas <path>`: Specify custom PyTappas installation path
 
 ## 🔍 How Hailo AI Works
 
@@ -225,10 +270,10 @@ Video Input → GStreamer Pipeline → Hailo AI Processor → Post-processing �
 - Configurable logging intervals
 
 ### Debug Tools
-- `debug_csv.py`: Test CSV functionality independently
-- Debug prints for troubleshooting
 - Performance monitoring capabilities
 - Error logging and reporting
+- Real-time statistics display
+- Comprehensive error handling
 
 ## 🤝 Contributing
 
@@ -272,15 +317,19 @@ Video Input → GStreamer Pipeline → Hailo AI Processor → Post-processing �
 
 ### Debug Commands
 ```bash
-# Test CSV functionality
-python Vision/debug_csv.py
-
 # Check system resources
 htop
 df -h
 
 # Verify Hailo installation
 python -c "import hailo; print('Hailo installed successfully')"
+
+# Check installation status
+./install.sh --no-installation
+
+# Test people counter
+cd People-Counter
+python main.py
 ```
 
 ## 📄 License
