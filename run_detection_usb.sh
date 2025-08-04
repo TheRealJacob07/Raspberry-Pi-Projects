@@ -31,14 +31,14 @@ echo "Starting Hailo AI People Counter API..."
 
 # Install dependencies if needed
 echo "Installing dependencies..."
-pip3 install -r API/api_requirements.txt
+gnome-terminal -- pip3 install -r API/api_requirements.txt
 
 # Start the API server
 echo "Starting API server on port 123..."
-python3 API/api.py & 
+gnome-terminal -- python3 API/api.py & 
 
 echo "Running detection script..."
-python People-Counter/main.py --input usb
+gnome-terminal -- python People-Counter/main.py --input usb &
 
 # Check if the script ran successfully
 if [ $? -eq 0 ]; then
