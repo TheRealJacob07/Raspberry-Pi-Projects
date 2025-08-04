@@ -81,6 +81,14 @@ check_files() {
         print_warning "Run the people counter first to generate data"
     else
         print_status "CSV file found: $CSV_FILE"
+        # Check file permissions
+        if [ ! -r "$CSV_FILE" ]; then
+            print_warning "CSV file is not readable: $CSV_FILE"
+            print_warning "You may need to adjust file permissions"
+            print_warning "Try: chmod 644 $CSV_FILE"
+        else
+            print_status "CSV file is readable"
+        fi
     fi
 }
 

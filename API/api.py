@@ -29,7 +29,7 @@ import json
 app = Flask(__name__)
 
 # Configuration
-CSV_FILE = Path(__file__).parent / "people_count_log.csv"
+CSV_FILE = Path(__file__).parent.parent / "People-Counter" / "people_count_log.csv"
 PORT = 123
 
 def load_csv_data():
@@ -40,6 +40,17 @@ def load_csv_data():
         pandas.DataFrame: Parsed CSV data
     """
     try:
+        # Check if CSV file exists
+        if not CSV_FILE.exists():
+            print(f"CSV file not found: {CSV_FILE}")
+            return pd.DataFrame()
+        
+        # Check file permissions
+        if not os.access(CSV_FILE, os.R_OK):
+            print(f"Permission denied: Cannot read CSV file {CSV_FILE}")
+            print("Please check file permissions or run with appropriate access")
+            return pd.DataFrame()
+        
         # Read CSV file, skipping comment lines that start with #
         data = []
         with open(CSV_FILE, 'r', newline='', encoding='utf-8') as file:
@@ -50,6 +61,7 @@ def load_csv_data():
                     data.append(row)
         
         if not data:
+            print(f"CSV file is empty or contains no valid data: {CSV_FILE}")
             return pd.DataFrame()
         
         # Create DataFrame with proper column names
@@ -66,8 +78,19 @@ def load_csv_data():
                 df[col] = pd.to_numeric(df[col], errors='coerce')
         
         return df
+    except PermissionError as e:
+        print(f"Permission error accessing CSV file: {e}")
+        print(f"File: {CSV_FILE}")
+        print("Please check file permissions or run with appropriate access")
+        return pd.DataFrame()
+    except FileNotFoundError as e:
+        print(f"CSV file not found: {e}")
+        print(f"Expected location: {CSV_FILE}")
+        print("Please ensure the people counter has been run to generate data")
+        return pd.DataFrame()
     except Exception as e:
         print(f"Error loading CSV data: {e}")
+        print(f"File: {CSV_FILE}")
         return pd.DataFrame()
 
 @app.route('/')
@@ -329,6 +352,9 @@ def internal_error(error):
 if __name__ == '__main__':
     print(f"Starting Hailo AI People Counter API on port {PORT}")
     print(f"CSV file: {CSV_FILE}")
+    print(f"CSV file exists: {CSV_FILE.exists()}")
+    if CSV_FILE.exists():
+        print(f"CSV file readable: {os.access(CSV_FILE, os.R_OK)}")
     print(f"API will be available at: http://localhost:{PORT}")
     print("Press Ctrl+C to stop the server")
     
