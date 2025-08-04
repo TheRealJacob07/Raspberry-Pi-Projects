@@ -2,4 +2,8 @@
 # This file contains people detection statistics for charting and analysis
 "# Format: Timestamp, Minute, Hour, Day, People_This_Minute, People_This_Hour, People_This_Day, Total_Unique_People"
 
-Timestamp,Minute,Hour,Day,People_This_Minute,People_This_Hour,People_This_Day,Total_Unique_People
+Timestamp,Minute,Hour,Day,People_This_Minute,People_This_Hour,People_This_Day,Total_Unique_People2025-08-04 03:11:38,29238251,487304,20304,1,1,1,1
+2025-08-04 03:11:45,29238251,487304,20304,2,2,2,2
+2025-08-04 03:12:00,29238252,487304,20304,2,2,2,2
+2025-08-04 03:12:09,29238252,487304,20304,1,3,3,3
+2025-08-04 03:13:00,29238253,487304,20304,1,3,3,3

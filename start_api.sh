@@ -158,6 +158,7 @@ start_api() {
     if ps -p "$API_PID" > /dev/null 2>&1; then
         print_status "API started successfully (PID: $API_PID)"
         print_status "API is available at: http://localhost:$PORT"
+    print_status "API URL: http://localhost:$PORT"
         print_status "To view logs: tail -f $LOG_FILE"
         print_status "To stop API: ./start_api.sh stop"
     else

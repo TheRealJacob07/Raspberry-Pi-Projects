@@ -53,22 +53,64 @@ def load_csv_data():
         
         # Read CSV file, skipping comment lines that start with #
         data = []
-        with open(CSV_FILE, 'r', newline='', encoding='utf-8') as file:
-            reader = csv.reader(file)
-            for row in reader:
-                # Skip comment lines and empty rows
-                if row and not row[0].startswith('#') and not row[0].startswith('"#'):
-                    data.append(row)
+        header_found = False
+        header = None
         
-        if not data:
+        with open(CSV_FILE, 'r', newline='', encoding='utf-8') as file:
+            for line in file:
+                line = line.strip()
+                # Skip comment lines and empty rows
+                if not line or line.startswith('#') or line.startswith('"#'):
+                    continue
+                
+                # Parse the line as CSV
+                row = list(csv.reader([line]))[0]
+                
+                if not header_found:
+                    # This is the header row, but it might contain data too
+                    # Look for the pattern where header ends and data begins
+                    header_part = []
+                    data_part = []
+                    in_data = False
+                    
+                    for item in row:
+                        if not in_data and item and not item[0].isdigit():
+                            # This looks like a header item
+                            header_part.append(item)
+                        else:
+                            # This looks like data
+                            in_data = True
+                            data_part.append(item)
+                    
+                    if header_part:
+                        header = header_part
+                        header_found = True
+                        
+                        # If we found data in the same line, add it
+                        if data_part and len(data_part) >= len(header):
+                            # Pad data_part if needed
+                            while len(data_part) < len(header):
+                                data_part.append('')
+                            data.append(data_part[:len(header)])
+                else:
+                    # This is a data row
+                    if len(row) >= len(header):
+                        data.append(row[:len(header)])
+                    else:
+                        # Pad the row if it's too short
+                        padded_row = row + [''] * (len(header) - len(row))
+                        data.append(padded_row)
+        
+        if not data or not header:
             print(f"CSV file is empty or contains no valid data: {CSV_FILE}")
             return pd.DataFrame()
         
         # Create DataFrame with proper column names
-        df = pd.DataFrame(data[1:], columns=data[0])
+        df = pd.DataFrame(data, columns=header)
         
         # Convert timestamp to datetime
-        df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+        if 'Timestamp' in df.columns:
+            df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce')
         
         # Convert numeric columns
         numeric_columns = ['Minute', 'Hour', 'Day', 'People_This_Minute', 
@@ -77,6 +119,7 @@ def load_csv_data():
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
         
+        print(f"Successfully loaded {len(df)} records from CSV")
         return df
     except PermissionError as e:
         print(f"Permission error accessing CSV file: {e}")
