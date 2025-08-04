@@ -16,13 +16,29 @@ if ! command -v python &> /dev/null; then
 fi
 
 # Check if the detection script exists
-if [ ! -f "Resources/hailo-rpi5-examples-main/basic_pipelines/detection.py" ]; then
-    echo "Error: detection.py not found at Resources/hailo-rpi5-examples-main/basic_pipelines/detection.py"
+if [ ! -f "People-Counter/main.py" ]; then
+    echo "Error: detection.py not found at People-Counter/main.py"
     exit 1
 fi
 
+# Check if the CSV file exists
+if [ ! -f "People-Counter/people_count_log.csv" ]; then
+    echo "Warning: people_count_log.csv not found. API will start but may return no data."
+fi
+
 # Run the detection script with USB input
-python Resources/hailo-rpi5-examples-main/basic_pipelines/detection.py --input usb
+echo "Starting Hailo AI People Counter API..."
+
+# Install dependencies if needed
+echo "Installing dependencies..."
+pip3 install -r API/api_requirements.txt
+
+# Start the API server
+echo "Starting API server on port 123..."
+python3 API/api.py & 
+
+echo "Running detection script..."
+python People-Counter/main.py --input usb
 
 # Check if the script ran successfully
 if [ $? -eq 0 ]; then

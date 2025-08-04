@@ -23,6 +23,10 @@ This repository contains a collection of Raspberry Pi projects that leverage **H
 
 ```
 Raspberry-Pi-Projects/
+├── API/                              # REST API for people counter data
+│   ├── api.py                        # Flask API server
+│   ├── api_requirements.txt          # API dependencies
+│   └── README.md                     # Comprehensive API documentation
 ├── People-Counter/                   # AI-powered people counting application
 │   ├── main.py                       # Enhanced people counting with CSV logging
 │   └── people_count_log.csv          # People counting data log
@@ -70,6 +74,78 @@ Timestamp,Minute,People_Count,Total_Unique_People
 cd People-Counter
 python main.py
 ```
+
+### 2. REST API for People Counter Data (`API/`)
+**Web API for accessing people counter statistics and analytics**
+
+**Features:**
+- RESTful API endpoints for people counter data access
+- Real-time data retrieval from CSV logs
+- Multiple data views (raw, summary, hourly, daily aggregations)
+- Pagination support for large datasets
+- JSON responses with comprehensive statistics
+- Cross-platform compatibility (Windows, Linux, Mac)
+
+**API Endpoints:**
+- `GET /` - API information and endpoint list
+- `GET /data` - All CSV data with pagination
+- `GET /data/latest` - Latest data entry
+- `GET /data/summary` - Summary statistics
+- `GET /data/hourly` - Hourly aggregated data
+- `GET /data/daily` - Daily aggregated data
+- `GET /data/current` - Current time period data
+
+**Technical Details:**
+- Built with Flask framework for lightweight, fast API
+- Automatic CSV parsing with comment line handling
+- Thread-safe data access and error handling
+- Configurable port and host binding
+- Comprehensive error responses with HTTP status codes
+
+**Quick Start:**
+```bash
+# Install API dependencies
+cd API
+pip install -r api_requirements.txt
+
+# Start the API server
+python api.py
+
+# API will be available at http://localhost:123
+```
+
+**Example API Usage:**
+```bash
+# Get API information
+curl http://localhost:123/
+
+# Get latest people count
+curl http://localhost:123/data/latest
+
+# Get summary statistics
+curl http://localhost:123/data/summary
+
+# Get hourly data for last 24 hours
+curl http://localhost:123/data/hourly?hours=24
+```
+
+**Python Integration Example:**
+```python
+import requests
+
+# Get current people count
+response = requests.get('http://localhost:123/data/current')
+data = response.json()
+print(f"Current people: {data['current_data']['latest_data']['Total_Unique_People']}")
+
+# Get summary statistics
+response = requests.get('http://localhost:123/data/summary')
+summary = response.json()
+print(f"Total records: {summary['summary']['total_records']}")
+```
+
+**Documentation:**
+For complete API documentation with examples, see [`API/README.md`](API/README.md).
 
 ## 🔧 Hailo Basic Pipelines
 
@@ -176,6 +252,13 @@ virtual_env_name: "venv_hailo_rpi_examples"  # Virtual environment name
    python main.py
    ```
 
+6. **Start the API server (optional):**
+   ```bash
+   cd API
+   pip install -r api_requirements.txt
+   python api.py
+   ```
+
 ### Installation Script Options
 
 The `install.sh` script supports several command-line options:
@@ -228,6 +311,7 @@ Video Input → GStreamer Pipeline → Hailo AI Processor → Post-processing �
 - Security and surveillance systems
 - Smart pet monitoring and interaction
 - Gesture-based home automation
+- Web-based dashboards and mobile apps via API
 
 ### **Gaming & Entertainment**
 - Motion-controlled games
@@ -268,6 +352,13 @@ Video Input → GStreamer Pipeline → Hailo AI Processor → Post-processing �
 - Thread-safe file operations
 - Error handling and recovery
 - Configurable logging intervals
+
+### REST API Integration
+- Real-time data access via HTTP endpoints
+- JSON-based data retrieval and analytics
+- Multiple data aggregation views (hourly, daily, summary)
+- Cross-platform API for web and mobile applications
+- Automatic CSV parsing and data validation
 
 ### Debug Tools
 - Performance monitoring capabilities
@@ -330,6 +421,11 @@ python -c "import hailo; print('Hailo installed successfully')"
 # Test people counter
 cd People-Counter
 python main.py
+
+# Test API server
+cd API
+python api.py
+curl http://localhost:123/
 ```
 
 ## 📄 License
