@@ -96,7 +96,7 @@ check_files() {
 install_dependencies() {
     print_status "Installing dependencies..."
     
-    if ! $PYTHON_CMD -m pip install -r "$REQUIREMENTS_FILE"; then
+    if ! $PYTHON_CMD -m pip install -r "$REQUIREMENTS_FILE" --break-system-packages; then
         print_error "Failed to install dependencies"
         print_error "Please check your internet connection and try again"
         exit 1
