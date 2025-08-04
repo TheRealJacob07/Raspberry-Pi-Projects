@@ -21,24 +21,8 @@ if [ ! -f "People-Counter/main.py" ]; then
     exit 1
 fi
 
-# Check if the CSV file exists
-if [ ! -f "People-Counter/people_count_log.csv" ]; then
-    echo "Warning: people_count_log.csv not found. API will start but may return no data."
-fi
-
-# Run the detection script with USB input
-echo "Starting Hailo AI People Counter API..."
-
-# Install dependencies if needed
-echo "Installing dependencies..."
-gnome-terminal -- pip3 install -r API/api_requirements.txt
-
-# Start the API server
-echo "Starting API server on port 123..."
-gnome-terminal -- python3 API/api.py & 
-
 echo "Running detection script..."
-gnome-terminal -- python People-Counter/main.py --input usb &
+gnome-terminal -- python People-Counter/main.py --input usb
 
 # Check if the script ran successfully
 if [ $? -eq 0 ]; then
