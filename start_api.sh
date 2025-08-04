@@ -19,7 +19,7 @@ REQUIREMENTS_FILE="$API_DIR/api_requirements.txt"
 CSV_FILE="$SCRIPT_DIR/People-Counter/people_count_log.csv"
 PID_FILE="$API_DIR/api.pid"
 LOG_FILE="$API_DIR/api.log"
-PORT=123
+PORT=8000
 HOST="0.0.0.0"
 
 # Function to print colored output

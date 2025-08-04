@@ -53,7 +53,7 @@ def load_csv_data():
         
         # Read CSV file, skipping comment lines that start with #
         data = []
-        with open(CSV_FILE, 'a', newline='', encoding='utf-8') as file:
+        with open(CSV_FILE, 'r', newline='', encoding='utf-8') as file:
             reader = csv.reader(file)
             for row in reader:
                 # Skip comment lines and empty rows
