@@ -280,16 +280,20 @@ def get_hourly_data():
     if recent_df.empty:
         return jsonify({'error': f'No data available for the last {hours} hours'}), 404
     
-    # Group by hour and get the latest entry for each hour
+    # Group by actual hour (0-23) from timestamp
     hourly_data = []
-    for hour in recent_df['Hour'].unique():
-        hour_data = recent_df[recent_df['Hour'] == hour].iloc[-1]
-        hourly_data.append({
-            'hour': int(hour),
-            'timestamp': hour_data['Timestamp'].isoformat(),
-            'people_this_hour': int(hour_data['People_This_Hour']),
-            'total_unique_people': int(hour_data['Total_Unique_People'])
-        })
+    for hour in range(24):
+        # Get data for this hour
+        hour_df = recent_df[recent_df['Timestamp'].dt.hour == hour]
+        if not hour_df.empty:
+            # Get the latest entry for this hour
+            hour_data = hour_df.iloc[-1]
+            hourly_data.append({
+                'hour': hour,
+                'timestamp': hour_data['Timestamp'].isoformat(),
+                'people_this_hour': int(hour_data['People_This_Hour']),
+                'total_unique_people': int(hour_data['Total_Unique_People'])
+            })
     
     return jsonify({
         'hourly_data': hourly_data,
