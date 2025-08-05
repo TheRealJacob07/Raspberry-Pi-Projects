@@ -132,6 +132,26 @@ def get_people_data():
         summary_response = requests.get(f"{API_BASE_URL}/data/summary", timeout=5)
         summary_data = summary_response.json() if summary_response.status_code == 200 else {}
         
+        # If any endpoint failed, try to get basic data
+        if not current_data and not hourly_data and not summary_data:
+            # Fallback: get all data and process it
+            all_data_response = requests.get(f"{API_BASE_URL}/data", timeout=5)
+            if all_data_response.status_code == 200:
+                all_data = all_data_response.json()
+                if 'data' in all_data and all_data['data']:
+                    # Process the data manually
+                    latest = all_data['data'][-1]
+                    current_data = {
+                        'current_data': {
+                            'latest_data': {
+                                'people_this_minute': latest.get('People_This_Minute', 0),
+                                'people_this_hour': latest.get('People_This_Hour', 0),
+                                'people_this_day': latest.get('People_This_Day', 0),
+                                'total_unique_people': latest.get('Total_Unique_People', 0)
+                            }
+                        }
+                    }
+        
         return jsonify({
             'current': current_data.get('current_data', {}),
             'hourly': hourly_data.get('hourly_data', []),

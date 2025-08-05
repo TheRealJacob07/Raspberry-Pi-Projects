@@ -63,43 +63,33 @@ def load_csv_data():
                 if not line or line.startswith('#') or line.startswith('"#'):
                     continue
                 
-                # Parse the line as CSV
-                row = list(csv.reader([line]))[0]
-                
+                # Handle malformed CSV where header and data are concatenated
                 if not header_found:
-                    # This is the header row, but it might contain data too
-                    # Look for the pattern where header ends and data begins
-                    header_part = []
-                    data_part = []
-                    in_data = False
-                    
-                    for item in row:
-                        if not in_data and item and not item[0].isdigit():
-                            # This looks like a header item
-                            header_part.append(item)
-                        else:
-                            # This looks like data
-                            in_data = True
-                            data_part.append(item)
-                    
-                    if header_part:
-                        header = header_part
+                    # Split the line to separate header from data
+                    if 'Timestamp,Minute,Hour,Day,People_This_Minute,People_This_Hour,People_This_Day,Total_Unique_People' in line:
+                        # Extract the data part after the header
+                        data_part = line.split('Total_Unique_People', 1)[1]
+                        header = ['Timestamp', 'Minute', 'Hour', 'Day', 'People_This_Minute', 'People_This_Hour', 'People_This_Day', 'Total_Unique_People']
                         header_found = True
                         
-                        # If we found data in the same line, add it
-                        if data_part and len(data_part) >= len(header):
-                            # Pad data_part if needed
-                            while len(data_part) < len(header):
-                                data_part.append('')
-                            data.append(data_part[:len(header)])
+                        # Parse the data part
+                        if data_part:
+                            # Split by comma and create data row
+                            values = data_part.split(',')
+                            if len(values) >= 8:
+                                data.append(values[:8])
+                    else:
+                        # Try to parse as regular CSV
+                        row = list(csv.reader([line]))[0]
+                        if len(row) >= 8:
+                            header = ['Timestamp', 'Minute', 'Hour', 'Day', 'People_This_Minute', 'People_This_Hour', 'People_This_Day', 'Total_Unique_People']
+                            header_found = True
+                            data.append(row[:8])
                 else:
                     # This is a data row
-                    if len(row) >= len(header):
-                        data.append(row[:len(header)])
-                    else:
-                        # Pad the row if it's too short
-                        padded_row = row + [''] * (len(header) - len(row))
-                        data.append(padded_row)
+                    row = list(csv.reader([line]))[0]
+                    if len(row) >= 8:
+                        data.append(row[:8])
         
         if not data or not header:
             print(f"CSV file is empty or contains no valid data: {CSV_FILE}")
